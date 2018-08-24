@@ -3,18 +3,19 @@ header.row
     h3 = t('CronJobs')
 
   .span.col-sm-7.pull-right style="margin-top: 20px; margin-bottom: 10px;"
-    form.pull-right action="#{root_path}cron/__all__/delete" method="post"
-      = csrf_tag if respond_to?(:csrf_tag)
-      input.btn.btn-small.pull-left.btn-danger type="submit" name="enque" value="#{t('DeleteAll')}" data-confirm="#{t('AreYouSureDeleteCronJobs')}"
-    form.pull-right action="#{root_path}cron/__all__/disable" method="post"
-      = csrf_tag if respond_to?(:csrf_tag)
-      input.btn.btn-small.pull-left type="submit" name="enque" value="#{t('DisableAll')}"
-    form.pull-right action="#{root_path}cron/__all__/enable" method="post"
-      = csrf_tag if respond_to?(:csrf_tag)
-      input.btn.btn-small.pull-left type="submit" name="enque" value="#{t('EnableAll')}"
-    form.pull-right action="#{root_path}cron/__all__/enque" method="post"
-      = csrf_tag if respond_to?(:csrf_tag)
-      input.btn.btn-small.pull-left type="submit" name="enque" value="#{t('EnqueueAll')}"
+    - if @cron_jobs.size > 0
+      form.pull-right action="#{root_path}cron/__all__/delete" method="post"
+        = csrf_tag if respond_to?(:csrf_tag)
+        input.btn.btn-small.pull-left.btn-danger type="submit" name="enque" value="#{t('DeleteAll')}" data-confirm="#{t('AreYouSureDeleteCronJobs')}"
+      form.pull-right action="#{root_path}cron/__all__/disable" method="post"
+        = csrf_tag if respond_to?(:csrf_tag)
+        input.btn.btn-small.pull-left type="submit" name="enque" value="#{t('DisableAll')}"
+      form.pull-right action="#{root_path}cron/__all__/enable" method="post"
+        = csrf_tag if respond_to?(:csrf_tag)
+        input.btn.btn-small.pull-left type="submit" name="enque" value="#{t('EnableAll')}"
+      form.pull-right action="#{root_path}cron/__all__/enque" method="post"
+        = csrf_tag if respond_to?(:csrf_tag)
+        input.btn.btn-small.pull-left type="submit" name="enque" value="#{t('EnqueueAll')}"
 
 - if @cron_jobs.size > 0
 
@@ -33,7 +34,8 @@ header.row
       tr
         td[style="#{style}"]= job.status
         td[style="#{style}"]
-          b job.name
+          a href="#{root_path}cron/#{CGI.escape(job.name).gsub('+', '%20')}"
+            b = job.name
           hr style="margin:3px;border:0;"
           small
             - if job.message and job.message.to_s.size > 100
@@ -66,4 +68,4 @@ header.row
               input.btn.btn-danger.btn-small type="submit" name="delete" value="#{t('Delete')}" data-confirm="#{t('AreYouSureDeleteCronJob', :job => job.name)}"
 
 - else
-  .alert.alert-success = t('NoCronJobsFound')
+  .alert.alert-success = t('NoCronJobsWereFound')

@@ -41,7 +41,7 @@ describe 'Cron web' do
 
   it 'display cron web with message - no cron jobs' do
     get '/cron'
-    assert last_response.body.include?('No cron jobs found')
+    assert last_response.body.include?('No cron jobs were found')
   end
 
   it 'display cron web with cron jobs table' do
@@ -49,7 +49,7 @@ describe 'Cron web' do
 
     get '/cron'
     assert_equal 200, last_response.status
-    refute last_response.body.include?('No cron jobs found')
+    refute last_response.body.include?('No cron jobs were found')
     assert last_response.body.include?('table')
     assert last_response.body.include?("TestNameOfCronJob")
   end
@@ -64,6 +64,25 @@ describe 'Cron web' do
       @cron_job = Sidekiq::Cron::Job.new(@cron_args.merge(status: "enabled"))
       @cron_job.save
       @cron_job_name = "TesQueueNameOfCronJob"
+    end
+
+    it 'shows history of a cron job' do
+      @job.enque!
+      get "/cron/#{@name}"
+
+      jid =
+        Sidekiq.redis do |conn|
+          history = conn.lrange Sidekiq::Cron::Job.jid_history_key(@name), 0, -1
+          Sidekiq.load_json(history.last)['jid']
+        end
+
+      assert last_response.body.include?(jid)
+    end
+
+    it 'redirects to cron path when name not found' do
+      get '/cron/some-fake-name'
+
+      assert_match %r{\/cron\z}, last_response['Location']
     end
 
     it "disable and enable all cron jobs" do

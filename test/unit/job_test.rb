@@ -131,6 +131,28 @@ describe "Cron Job" do
     end
   end
 
+  describe 'parse_enqueue_time' do
+    before do
+      @args = {
+        name: "Test",
+        cron: "* * * * *"
+      }
+      @job = Sidekiq::Cron::Job.new(@args)
+    end
+
+    it 'should correctly parse new format' do
+      assert_equal @job.send(:parse_enqueue_time, '2017-01-02 15:23:43 UTC'), Time.new(2017, 1, 2, 15, 23, 43, '+00:00')
+    end
+
+    it 'should correctly parse new format with different timezone' do
+      assert_equal @job.send(:parse_enqueue_time, '2017-01-02 15:23:43 +01:00'), Time.new(2017, 1, 2, 15, 23, 43, '+01:00')
+    end
+
+    it 'should correctly parse old format' do
+      assert_equal @job.send(:parse_enqueue_time, '2017-01-02 15:23:43'), Time.new(2017, 1, 2, 15, 23, 43, '+00:00')
+    end
+  end
+
   describe 'formatted time' do
     before do
       @args = {
@@ -359,7 +381,7 @@ describe "Cron Job" do
 
       it 'pushes to queue active jobs message' do
         @job.expects(:enqueue_active_job)
-            .returns(true)
+            .returns(ActiveJobCronTestClass.new)
         @job.enque!
       end
     end
@@ -377,7 +399,7 @@ describe "Cron Job" do
 
       it 'pushes to queue active jobs message with queue_name_prefix' do
         @job.expects(:enqueue_active_job)
-            .returns(true)
+            .returns(ActiveJobCronTestClass.new)
         @job.enque!
       end
     end
@@ -600,14 +622,15 @@ describe "Cron Job" do
 
     it "last_enqueue_time shouldn't be rewritten after save" do
       #adding last_enqueue_time to initialize is only for test purpose
-      last_enqueue_time = '2013-01-01 23:59:59'
+      last_enqueue_time = '2013-01-01 23:59:59 +0000'
+      expected_enqueue_time = DateTime.parse(last_enqueue_time).to_time.utc
       Sidekiq::Cron::Job.create(@args.merge('last_enqueue_time' => last_enqueue_time))
       job = Sidekiq::Cron::Job.find(@args)
-      assert_equal job.last_enqueue_time, Time.parse(last_enqueue_time)
+      assert_equal job.last_enqueue_time, expected_enqueue_time
 
       Sidekiq::Cron::Job.create(@args)
       job = Sidekiq::Cron::Job.find(@args)
-      assert_equal job.last_enqueue_time, Time.parse(last_enqueue_time), "after second create should have same time"
+      assert_equal job.last_enqueue_time, expected_enqueue_time, "after second create should have same time"
     end
   end
 
