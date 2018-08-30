@@ -133,7 +133,7 @@ module Sidekiq
           if klass_const
             if defined?(ActiveJob::Base) && klass_const < ActiveJob::Base
               job = enqueue_active_job(klass_const)
-              job.try(:provider_job_id) || job
+              job.try(:job_id)
             else
               enqueue_sidekiq_worker(klass_const)
             end
