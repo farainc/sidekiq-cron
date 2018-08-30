@@ -18,11 +18,19 @@ describe "Cron Job" do
 
   it "be initialized" do
     job = Sidekiq::Cron::Job.new()
-    assert_nil job.last_enqueue_time
+    assert job.last_enqueue_timestamp.to_i == 0
     assert job.is_a?(Sidekiq::Cron::Job)
   end
 
   describe "class methods" do
+    it "have all" do
+      assert Sidekiq::Cron::Job.respond_to?(:all)
+    end
+
+    it "have enqueueable" do
+      assert Sidekiq::Cron::Job.respond_to?(:enqueueable)
+    end
+
     it "have create method" do
       assert Sidekiq::Cron::Job.respond_to?(:create)
     end
@@ -35,12 +43,36 @@ describe "Cron Job" do
       assert Sidekiq::Cron::Job.respond_to?(:count)
     end
 
-    it "have all" do
-      assert Sidekiq::Cron::Job.respond_to?(:all)
-    end
-
     it "have find" do
       assert Sidekiq::Cron::Job.respond_to?(:find)
+    end
+
+    it "have load_from_hash" do
+      assert Sidekiq::Cron::Job.respond_to?(:load_from_hash)
+    end
+
+    it "have load_from_hash!" do
+      assert Sidekiq::Cron::Job.respond_to?(:load_from_hash!)
+    end
+
+    it "have load_from_array" do
+      assert Sidekiq::Cron::Job.respond_to?(:load_from_array)
+    end
+
+    it "have load_from_array!" do
+      assert Sidekiq::Cron::Job.respond_to?(:load_from_array!)
+    end
+
+    it "have exists?" do
+      assert Sidekiq::Cron::Job.respond_to?(:exists?)
+    end
+
+    it "have destroy_all!" do
+      assert Sidekiq::Cron::Job.respond_to?(:destroy_all!)
+    end
+
+    it "have destroy_removed_jobs" do
+      assert Sidekiq::Cron::Job.respond_to?(:destroy_removed_jobs)
     end
   end
 
@@ -69,7 +101,7 @@ describe "Cron Job" do
       assert @job.respond_to?(:disabled?)
     end
 
-    it 'have sort_name - used for sorting enabled disbaled jobs on frontend' do
+    it 'have sort_name - used for sorting enabled disabled jobs on frontend' do
       job = Sidekiq::Cron::Job.new(name: "TestName")
       assert_equal job.sort_name, "0_testname"
     end
@@ -125,7 +157,9 @@ describe "Cron Job" do
     end
 
     it "have to_hash method" do
-      [:name,:klass,:cron,:description,:args,:message,:status].each do |key|
+      [:name,:klass,:cron,:description,:args,:message,:status,
+       :active_job,:queue_name_prefix,:queue_name_delimiter,
+       :last_enqueue_time, :next_enqueue_time].each do |key|
         assert @job.to_hash.has_key?(key), "to_hash must have key: #{key}"
       end
     end
@@ -140,6 +174,9 @@ describe "Cron Job" do
       @job = Sidekiq::Cron::Job.new(@args)
     end
 
+    it 'should correctly parse with integer' do
+      assert_equal @job.send(:parse_enqueue_time, Time.new(2017, 1, 2, 15, 23, 43, '+00:00').utc.to_i), Time.new(2017, 1, 2, 15, 23, 43, '+00:00').utc
+    end
     it 'should correctly parse new format' do
       assert_equal @job.send(:parse_enqueue_time, '2017-01-02 15:23:43 UTC'), Time.new(2017, 1, 2, 15, 23, 43, '+00:00')
     end
@@ -150,25 +187,6 @@ describe "Cron Job" do
 
     it 'should correctly parse old format' do
       assert_equal @job.send(:parse_enqueue_time, '2017-01-02 15:23:43'), Time.new(2017, 1, 2, 15, 23, 43, '+00:00')
-    end
-  end
-
-  describe 'formatted time' do
-    before do
-      @args = {
-        name: "Test",
-        cron: "* * * * *"
-      }
-      @job = Sidekiq::Cron::Job.new(@args)
-      @time = Time.new(2015, 1, 2, 3, 4, 5, '+01:00')
-    end
-
-    it 'returns formatted_last_time' do
-      assert_equal '2015-01-02T02:04:00Z', @job.formated_last_time(@time)
-    end
-
-    it 'returns formated_enqueue_time' do
-      assert_equal '1420164240.0', @job.formated_enqueue_time(@time)
     end
   end
 
@@ -227,31 +245,52 @@ describe "Cron Job" do
 
   describe "cron test" do
     before do
-      @job = Sidekiq::Cron::Job.new()
+      @job = Sidekiq::Cron::Job.new
     end
 
     it "return previous minute" do
       @job.cron = "* * * * *"
-      time = Time.new(2018, 8, 10, 13, 24, 56).utc
-      assert_equal @job.last_time(time).strftime("%Y-%m-%d-%H-%M-%S"), time.strftime("%Y-%m-%d-%H-%M-00")
+      time = Time.new(2018, 8, 10, 13, 24, 56, "+00:00").utc
+      assert_equal @job.calculate_previous_enqueue_time(time).to_i, Time.new(2018, 8, 10, 13, 24, 00, "+00:00").utc.to_i
     end
 
     it "return previous hour" do
       @job.cron = "1 * * * *"
-      time = Time.new(2018, 8, 10, 13, 24, 56).utc
-      assert_equal @job.last_time(time).strftime("%Y-%m-%d-%H-%M-%S"), time.strftime("%Y-%m-%d-%H-01-00")
+      time = Time.new(2018, 8, 10, 13, 24, 56, "+00:00").utc
+      assert_equal @job.calculate_previous_enqueue_time(time).to_i, Time.new(2018, 8, 10, 13, 01, 00, "+00:00").utc.to_i
     end
 
     it "return previous day" do
       @job.cron = "1 2 * * * Etc/GMT"
-      time = Time.new(2018, 8, 10, 13, 24, 56).utc
+      # > 02:01:00
+      time = Time.new(2018, 8, 10, 13, 24, 56, "+00:00").utc
+      assert_equal @job.calculate_previous_enqueue_time(time).to_i, Time.new(2018, 8, 10, 02, 01, 00, "+00:00").utc.to_i
 
-      if time.hour >= 2
-        assert_equal @job.last_time(time).strftime("%Y-%m-%d-%H-%M-%S"), time.strftime("%Y-%m-%d-02-01-00")
-      else
-        yesterday = time - 1.day
-        assert_equal @job.last_time(time).strftime("%Y-%m-%d-%H-%M-%S"), yesterday.strftime("%Y-%m-%d-02-01-00")
-      end
+      time = Time.new(2018, 8, 10, 1, 24, 56, "+00:00").utc
+      assert_equal @job.calculate_previous_enqueue_time(time).to_i, Time.new(2018, 8, 9, 02, 01, 00, "+00:00").utc.to_i
+    end
+
+    it "return next minute" do
+      @job.cron = "* * * * *"
+      time = Time.new(2018, 8, 10, 13, 24, 56, "+00:00").utc
+      assert_equal @job.calculate_next_enqueue_time(time).to_i, Time.new(2018, 8, 10, 13, 25, 00, "+00:00").utc.to_i
+    end
+
+    it "return next hour" do
+      @job.cron = "1 * * * *"
+      time = Time.new(2018, 8, 10, 13, 24, 56, "+00:00").utc
+      assert_equal @job.calculate_next_enqueue_time(time).to_i, Time.new(2018, 8, 10, 14, 01, 00, "+00:00").utc.to_i
+    end
+
+    it "return next day" do
+      @job.cron = "1 2 * * * Etc/GMT"
+      # > 02:01:00
+      time = Time.new(2018, 8, 10, 13, 24, 56, "+00:00").utc
+      assert_equal @job.calculate_next_enqueue_time(time).to_i, Time.new(2018, 8, 11, 02, 01, 00, "+00:00").utc.to_i
+
+      # < 02:01:00
+      time = Time.new(2018, 8, 10, 1, 24, 56, "+00:00").utc
+      assert_equal @job.calculate_next_enqueue_time(time).to_i, Time.new(2018, 8, 10, 02, 01, 00, "+00:00").utc.to_i
     end
   end
 
@@ -623,14 +662,14 @@ describe "Cron Job" do
     it "last_enqueue_time shouldn't be rewritten after save" do
       #adding last_enqueue_time to initialize is only for test purpose
       last_enqueue_time = '2013-01-01 23:59:59 +0000'
-      expected_enqueue_time = DateTime.parse(last_enqueue_time).to_time.utc
-      Sidekiq::Cron::Job.create(@args.merge('last_enqueue_time' => last_enqueue_time))
+      expected_enqueue_timestamp = DateTime.parse(last_enqueue_time).to_time.utc.to_i
+      Sidekiq::Cron::Job.create(@args.merge('last_enqueue_time' => expected_enqueue_timestamp))
       job = Sidekiq::Cron::Job.find(@args)
-      assert_equal job.last_enqueue_time, expected_enqueue_time
+      assert_equal job.last_enqueue_timestamp, expected_enqueue_timestamp
 
       Sidekiq::Cron::Job.create(@args)
       job = Sidekiq::Cron::Job.find(@args)
-      assert_equal job.last_enqueue_time, expected_enqueue_time, "after second create should have same time"
+      assert_equal job.last_enqueue_timestamp, expected_enqueue_timestamp, "after second create should have same time"
     end
   end
 
@@ -803,6 +842,7 @@ describe "Cron Job" do
       #after next cron time!
       @time = Time.now.utc + 120
     end
+
     it "be allways false when status is disabled" do
       refute Sidekiq::Cron::Job.new(@args.merge(status: 'disabled')).should_enque? @time
       refute Sidekiq::Cron::Job.new(@args.merge(status: 'disabled')).should_enque? @time - 60
@@ -812,67 +852,64 @@ describe "Cron Job" do
 
     it "be false for same times" do
       assert Sidekiq::Cron::Job.new(@args).should_enque?(@time), "First time - true"
-      refute Sidekiq::Cron::Job.new(@args).should_enque? @time
-      refute Sidekiq::Cron::Job.new(@args).should_enque? @time
+      refute Sidekiq::Cron::Job.new(@args.merge(next_enqueue_time: @time.to_i)).should_enque? @time - 1
+      refute Sidekiq::Cron::Job.new(@args.merge(next_enqueue_time: @time.to_i)).should_enque? @time - 1
     end
 
     it "be false for same times but true for next time" do
       assert Sidekiq::Cron::Job.new(@args).should_enque?(@time), "First time - true"
-      refute Sidekiq::Cron::Job.new(@args).should_enque? @time
+      refute Sidekiq::Cron::Job.new(@args.merge(next_enqueue_time: @time.to_i)).should_enque? @time - 1
       assert Sidekiq::Cron::Job.new(@args).should_enque? @time + 135
-      refute Sidekiq::Cron::Job.new(@args).should_enque? @time + 135
+      refute Sidekiq::Cron::Job.new(@args.merge(next_enqueue_time: @time.to_i + 136)).should_enque? @time + 135
       assert Sidekiq::Cron::Job.new(@args).should_enque? @time + 235
-      refute Sidekiq::Cron::Job.new(@args).should_enque? @time + 235
+      refute Sidekiq::Cron::Job.new(@args.merge(next_enqueue_time: @time.to_i + 236)).should_enque? @time + 235
 
       #just for check
-      refute Sidekiq::Cron::Job.new(@args).should_enque? @time
-      refute Sidekiq::Cron::Job.new(@args).should_enque? @time + 135
-      refute Sidekiq::Cron::Job.new(@args).should_enque? @time + 235
+      # refute Sidekiq::Cron::Job.new(@args).should_enque? @time
+      # refute Sidekiq::Cron::Job.new(@args).should_enque? @time + 135
+      # refute Sidekiq::Cron::Job.new(@args).should_enque? @time + 235
     end
 
     it "should not enqueue jobs that are past" do
-      assert Sidekiq::Cron::Job.new(@args.merge(cron: "*/1 * * * *")).should_enque? @time
-      refute Sidekiq::Cron::Job.new(@args.merge(cron: "0 1,13 * * *")).should_enque? @time
+      assert Sidekiq::Cron::Job.new(@args.merge(cron: "*/1 * * * *", next_enqueue_time: @time.to_i)).should_enque? @time
+      refute Sidekiq::Cron::Job.new(@args.merge(cron: "0 1,13 * * *", last_enqueue_time: @time.to_i - 1)).should_enque? @time
     end
 
     it 'doesnt skip enqueuing if job is resaved near next enqueue time' do
+      @time = Time.now.utc
       job = Sidekiq::Cron::Job.new(@args)
       assert job.test_and_enque_for_time!(@time), "should enqueue"
 
       future_now = @time + 1 * 60 * 60
       Time.stubs(:now).returns(future_now) # save uses Time.now.utc
       job.save
-      assert Sidekiq::Cron::Job.new(@args).test_and_enque_for_time!(future_now + 30), "should enqueue"
+      # next_enqueue_time will after future_now
+
+      assert Sidekiq::Cron::Job.new(@args).test_and_enque_for_time!(future_now + 60), "should enqueue"
     end
 
     it "remove old enque times + should be enqeued" do
-      job = Sidekiq::Cron::Job.new(@args)
-      assert_nil job.last_enqueue_time
+      @time = Time.now.utc
+      job = Sidekiq::Cron::Job.new(@args.merge(fetch_missing_args: false))
+      assert job.last_enqueue_timestamp.to_i == 0
       assert job.test_and_enque_for_time!(@time), "should enqueue"
-      assert job.last_enqueue_time
+      assert job.last_enqueue_timestamp.to_i > 0
 
       refute Sidekiq::Cron::Job.new(@args).test_and_enque_for_time!(@time), "should not enqueue"
-      Sidekiq.redis do |conn|
-        assert_equal conn.zcard(Sidekiq::Cron::Job.new(@args).send(:job_enqueued_key)), 1, "Should have one enqueued job"
-      end
       assert_equal Sidekiq::Queue.all.first.size, 1, "Sidekiq queue 1 job in queue"
 
-      # 20 hours after
-      assert Sidekiq::Cron::Job.new(@args).test_and_enque_for_time! @time + 1 * 60 * 60
-      refute Sidekiq::Cron::Job.new(@args).test_and_enque_for_time! @time + 1 * 60 * 60
+      # 2 hours after
+      Time.stubs(:now).returns(@time + 2 * 60 * 60)
+      assert Sidekiq::Cron::Job.new(@args).test_and_enque_for_time! @time + 2 * 60 * 60
+      refute Sidekiq::Cron::Job.new(@args).test_and_enque_for_time! @time + 2 * 60 * 60
 
-      Sidekiq.redis do |conn|
-        assert_equal conn.zcard(Sidekiq::Cron::Job.new(@args).send(:job_enqueued_key)), 2, "Should have two enqueued job"
-      end
       assert_equal Sidekiq::Queue.all.first.size, 2, "Sidekiq queue 2 jobs in queue"
 
       # 26 hour after
+      Time.stubs(:now).returns(@time + 26 * 60 * 60)
       assert Sidekiq::Cron::Job.new(@args).test_and_enque_for_time! @time + 26 * 60 * 60
       refute Sidekiq::Cron::Job.new(@args).test_and_enque_for_time! @time + 26 * 60 * 60
 
-      Sidekiq.redis do |conn|
-        assert_equal conn.zcard(Sidekiq::Cron::Job.new(@args).send(:job_enqueued_key)), 1, "Should have one enqueued job - old jobs should be deleted"
-      end
       assert_equal Sidekiq::Queue.all.first.size, 3, "Sidekiq queue 3 jobs in queue"
     end
   end

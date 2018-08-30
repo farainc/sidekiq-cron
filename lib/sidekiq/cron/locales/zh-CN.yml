@@ -14,6 +14,6 @@ zh-CN:
   Enable: 启用
   Disable: 禁用
   'Last enque': 放入队列时间
+  'Next enque': 下次放入队列时间
   disabled: 已禁用
   enabled: 已启用
-

@@ -37,7 +37,10 @@ table.table.table-bordered.table-striped
       td= @job.cron.gsub(" ", "&nbsp;")
     tr
       th= t 'Last enque'
-      td= @job.last_enqueue_time ? relative_time(@job.last_enqueue_time) : "-"
+      td= @job.last_enqueue_timestamp.to_i > 0 ? relative_time(Time.at(@job.last_enqueue_timestamp.to_i).utc) : "-"
+    tr
+      th= t 'Next enque'
+      td= @job.next_enqueue_timestamp.to_i > 0 ? relative_time(Time.at(@job.next_enqueue_timestamp.to_i).utc) : "-"
 
 header.row
   .col-sm-12
@@ -48,11 +51,13 @@ header.row
     thead
       tr
         th= t 'Enqueued'
+        th= t 'Next enque'
         th= t 'JID'
     tbody
       - @job.jid_history_from_redis.each do |jid_history|
         tr
-          td= jid_history['enqueued']
+          td= jid_history['enqueued'].to_i > 0 ? relative_time(Time.at(jid_history['enqueued'].to_i).utc) : '-'
+          td= jid_history['next_enqueue_at'].to_i > 0 ? relative_time(Time.at(jid_history['next_enqueue_at'].to_i).utc) : '-'
           td= jid_history['jid']
 - else
   .alert.alert-success= t 'NoHistoryWereFound'

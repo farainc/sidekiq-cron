@@ -11,7 +11,8 @@ module Sidekiq
     class Poller < Sidekiq::Scheduled::Poller
       def enqueue
         time = Time.now.utc
-        Sidekiq::Cron::Job.all.each do |job|
+
+        Sidekiq::Cron::Job.enqueueable(time).each do |job|
           enqueue_job(job, time)
         end
       rescue => ex
@@ -25,7 +26,7 @@ module Sidekiq
       private
 
       def enqueue_job(job, time = Time.now.utc)
-        job.test_and_enque_for_time! time if job && job.valid?
+        job.test_and_enque_for_time!(time) if job && job.valid?
       rescue => ex
         # problem somewhere in one job
         logger.error "CRON JOB: #{ex.message}"

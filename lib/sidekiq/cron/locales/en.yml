@@ -14,6 +14,7 @@ en:
   Enable: Enable
   Disable: Disable
   'Last enque': Last enqueued
+  'Next enque': Next enqueue at
   disabled: disabled
   enabled: enabled
   NoHistoryWereFound: No history were found

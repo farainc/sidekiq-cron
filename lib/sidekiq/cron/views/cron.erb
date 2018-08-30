@@ -32,12 +32,13 @@
       <th><%= t('Name') %></th>
       <th><%= t('Cron string') %></th>
       <th><%= t('Last enque') %></th>
+      <th><%= t('Next enque') %></th>
       <th width="180"><%= t('Actions')%></th>
     </thead>
 
     <tbody>
       <% @cron_jobs.sort{|a,b| a.sort_name <=> b.sort_name }.each_with_index do |job, index| %>
-        <% style = "#{job.status == 'disabled' ? "background: #ecc": ""}" %>
+        <% style = "#{job.disabled? ? "background: #ecc": ""}" %>
         <tr>
           <td style="<%= style %>"><%= t job.status %></td>
           <td style="<%= style %>">
@@ -56,29 +57,30 @@
             </small>
           </td>
           <td style="<%= style %>"><b><%= job.cron.gsub(" ", "&nbsp;") %></b></td>
-          <td style="<%= style %>"><%= job.last_enqueue_time ? relative_time(job.last_enqueue_time) : "-" %></td>
+          <td style="<%= style %>"><%= job.last_enqueue_timestamp.to_i > 0 ? relative_time(Time.at(job.last_enqueue_timestamp.to_i).utc) : "-" %></td>
+          <td style="<%= style %>"><%= job.next_enqueue_timestamp.to_i > 0 ? relative_time(Time.at(job.next_enqueue_timestamp.to_i).utc) : "-" %></td>
           <td style="<%= style %>">
-            <% if job.status == 'enabled' %>
+            <% if job.enabled? %>
               <form action="<%= root_path %>cron/<%= CGI.escape(job.name).gsub('+', '%20') %>/enque" method="post">
                 <%= csrf_tag if respond_to?(:csrf_tag) %>
-                <input class='btn btn-xs pull-left' type="submit" name="enque" value="<%= t('EnqueueNow') %>"/>
+                <input class='btn btn-xs pull-left' style="margin-top:5px;" type="submit" name="enque" value="<%= t('EnqueueNow') %>"/>
               </form>
               <form action="<%= root_path %>cron/<%= CGI.escape(job.name).gsub('+', '%20') %>/disable" method="post">
                 <%= csrf_tag if respond_to?(:csrf_tag) %>
-                <input class='btn btn-xs pull-left' type="submit" name="disable" value="<%= t('Disable') %>"/>
+                <input class='btn btn-xs pull-left' style="margin-top:5px;" type="submit" name="disable" value="<%= t('Disable') %>"/>
               </form>
             <% else %>
               <form action="<%= root_path %>cron/<%= CGI.escape(job.name).gsub('+', '%20') %>/enque" method="post">
                 <%= csrf_tag if respond_to?(:csrf_tag) %>
-                <input class='btn btn-xs pull-left' type="submit" name="enque" value="<%= t('EnqueueNow') %>"/>
+                <input class='btn btn-xs pull-left' style="margin-top:5px;" type="submit" name="enque" value="<%= t('EnqueueNow') %>"/>
               </form>
               <form action="<%= root_path %>cron/<%= CGI.escape(job.name).gsub('+', '%20') %>/enable" method="post">
                 <%= csrf_tag if respond_to?(:csrf_tag) %>
-                <input class='btn btn-xs pull-left' type="submit" name="enable" value="<%= t('Enable') %>"/>
+                <input class='btn btn-xs pull-left' style="margin-top:5px;" type="submit" name="enable" value="<%= t('Enable') %>"/>
               </form>
               <form action="<%= root_path %>cron/<%= CGI.escape(job.name).gsub('+', '%20') %>/delete" method="post">
                 <%= csrf_tag if respond_to?(:csrf_tag) %>
-                <input class='btn btn-xs btn-danger pull-left' type="submit" name="delete" value="<%= t('Delete') %>" data-confirm="<%= t('AreYouSureDeleteCronJob', :job => job.name) %>"/>
+                <input class='btn btn-xs btn-danger pull-left' style="margin-top:5px;" type="submit" name="delete" value="<%= t('Delete') %>" data-confirm="<%= t('AreYouSureDeleteCronJob', :job => job.name) %>"/>
               </form>
             <% end %>
           </td>
@@ -89,4 +91,3 @@
 <% else %>
   <div class='alert alert-success'><%= t('NoCronJobsWereFound') %></div>
 <% end %>
-
