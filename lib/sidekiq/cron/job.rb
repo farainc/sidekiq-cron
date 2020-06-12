@@ -559,7 +559,7 @@ module Sidekiq
 
       def self.exists?(name)
         Sidekiq.redis do |conn|
-          conn.exists(redis_key(name))
+          conn.exists?(redis_key(name))
         end
       end
 
