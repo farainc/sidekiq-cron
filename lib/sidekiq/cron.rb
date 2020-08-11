@@ -8,7 +8,7 @@ module Sidekiq
 end
 
 if Redis::VERSION < '4.2'
-  module RedisCompatible
+  module Sidekiq::Cron::RedisCompatible
     extend ActiveSupport::Concern
 
     def exists?(key)
@@ -16,5 +16,5 @@ if Redis::VERSION < '4.2'
     end
   end
 
-  Redis.send(:include, RedisCompatible)
+  Redis.send(:include, Sidekiq::Cron::RedisCompatible)
 end
