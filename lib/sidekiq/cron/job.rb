@@ -401,7 +401,7 @@ module Sidekiq
       end
 
       def sort_name
-        "#{enabled? ? 0 : 1}_#{name}".downcase
+        "#{enabled? ? 1 : 0}_#{name}".downcase
       end
 
       def pretty_message
