@@ -38,7 +38,7 @@
 
     <tbody>
       <% @cron_jobs.sort_by{ |a| a.sort_name }.each_with_index do |job, index| %>
-        <% css_class = "#{job.disabled? ? "text-danger": ""}" %>
+        <% css_class = "#{job.disabled? ? "text-danger danger": ""}" %>
         <tr>
           <td class="<%= css_class %>"><%= t job.status %></td>
           <td class="<%= css_class %>">
