@@ -10,15 +10,15 @@
       </form>
       <form action="<%= root_path %>cron/__all__/disable" method="post" class="pull-right">
         <%= csrf_tag if respond_to?(:csrf_tag) %>
-        <input class="btn btn-small" type="submit" name="enque" value="<%= t('DisableAll') %>" />
+        <input class="btn btn-small btn-warn" type="submit" name="enque" value="<%= t('DisableAll') %>" />
       </form>
       <form action="<%= root_path %>cron/__all__/enable" method="post" class="pull-right">
         <%= csrf_tag if respond_to?(:csrf_tag) %>
-        <input class="btn btn-small" type="submit" name="enque" value="<%= t('EnableAll') %>" />
+        <input class="btn btn-small btn-warn" type="submit" name="enque" value="<%= t('EnableAll') %>" />
       </form>
       <form action="<%= root_path %>cron/__all__/enque" method="post" class="pull-right">
         <%= csrf_tag if respond_to?(:csrf_tag) %>
-        <input class="btn btn-small" type="submit" name="enque" value="<%= t('EnqueueAll') %>" />
+        <input class="btn btn-small btn-warn" type="submit" name="enque" value="<%= t('EnqueueAll') %>" />
       </form>
     <% end %>
   </div>
@@ -63,20 +63,20 @@
             <% if job.enabled? %>
               <form action="<%= root_path %>cron/<%= CGI.escape(job.name).gsub('+', '%20') %>/enque" method="post">
                 <%= csrf_tag if respond_to?(:csrf_tag) %>
-                <input class='btn btn-xs pull-left' style="margin-top:5px;" type="submit" name="enque" value="<%= t('EnqueueNow') %>"/>
+                <input class='btn btn-xs btn-warn pull-left' style="margin-top:5px;" type="submit" name="enque" value="<%= t('EnqueueNow') %>"/>
               </form>
               <form action="<%= root_path %>cron/<%= CGI.escape(job.name).gsub('+', '%20') %>/disable" method="post">
                 <%= csrf_tag if respond_to?(:csrf_tag) %>
-                <input class='btn btn-xs pull-left' style="margin-top:5px;" type="submit" name="disable" value="<%= t('Disable') %>"/>
+                <input class='btn btn-xs btn-warn pull-left' style="margin-top:5px;" type="submit" name="disable" value="<%= t('Disable') %>"/>
               </form>
             <% else %>
               <form action="<%= root_path %>cron/<%= CGI.escape(job.name).gsub('+', '%20') %>/enque" method="post">
                 <%= csrf_tag if respond_to?(:csrf_tag) %>
-                <input class='btn btn-xs pull-left' style="margin-top:5px;" type="submit" name="enque" value="<%= t('EnqueueNow') %>"/>
+                <input class='btn btn-xs btn-warn pull-left' style="margin-top:5px;" type="submit" name="enque" value="<%= t('EnqueueNow') %>"/>
               </form>
               <form action="<%= root_path %>cron/<%= CGI.escape(job.name).gsub('+', '%20') %>/enable" method="post">
                 <%= csrf_tag if respond_to?(:csrf_tag) %>
-                <input class='btn btn-xs pull-left' style="margin-top:5px;" type="submit" name="enable" value="<%= t('Enable') %>"/>
+                <input class='btn btn-xs btn-warn pull-left' style="margin-top:5px;" type="submit" name="enable" value="<%= t('Enable') %>"/>
               </form>
               <form action="<%= root_path %>cron/<%= CGI.escape(job.name).gsub('+', '%20') %>/delete" method="post">
                 <%= csrf_tag if respond_to?(:csrf_tag) %>
