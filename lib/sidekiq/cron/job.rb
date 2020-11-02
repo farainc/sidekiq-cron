@@ -401,7 +401,9 @@ module Sidekiq
       end
 
       def sort_name
-        "#{enabled? ? 1 : 0}_#{next_enqueue_timestamp}".downcase
+        recent_timestamp = Time.now.utc.to_i - last_enqueue_timestamp.to_i
+
+        "#{enabled? ? 1 : 0}_#{next_enqueue_timestamp}_#{recent_timestamp}_#{name}".downcase
       end
 
       def pretty_message
