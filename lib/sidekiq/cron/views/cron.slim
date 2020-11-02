@@ -36,7 +36,7 @@ header.row
         td[class="#{scss_class}"]= job.status
         td[class="#{css_class}"]
           a href="#{root_path}cron/#{CGI.escape(job.name).gsub('+', '%20')}"
-            b = job.name
+            b[class="#{css_class}"] = job.name
           hr style="margin:3px;border:0;"
           small
             - if job.message and job.message.to_s.size > 100
