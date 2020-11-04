@@ -13,7 +13,7 @@ module Sidekiq
         time = Time.now.utc
         locktime = time.to_i + (poll_interval_average * 0.5).to_i
 
-        return if getset_pulling_locktime(locktime) > time.to_i
+        return if getset_pulling_locktime(locktime).to_i > time.to_i
 
         Sidekiq::Cron::Job.enqueueable(time).each do |job|
           enqueue_job(job, time)
