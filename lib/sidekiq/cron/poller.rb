@@ -11,11 +11,17 @@ module Sidekiq
     class Poller < Sidekiq::Scheduled::Poller
       def enqueue
         time = Time.now.utc
+        locktime = time.to_i + (poll_interval_average * 0.5).to_i
+
+        return if getset_pulling_locktime(locktime) > time.to_i
 
         Sidekiq::Cron::Job.enqueueable(time).each do |job|
           enqueue_job(job, time)
         end
+
+        getset_pulling_locktime(0)
       rescue => ex
+        getset_pulling_locktime(0)
         # Most likely a problem with redis networking.
         # Punt and try again at the next interval
         logger.error ex.message
@@ -36,6 +42,12 @@ module Sidekiq
 
       def poll_interval_average
          Sidekiq.options[:poll_interval] || POLL_INTERVAL
+      end
+
+      def getset_pulling_locktime(locktime)
+        Sidekiq.redis_pool.with do |conn|
+          conn.getset('cron_job_puller:locktime', locktime)
+        end
       end
     end
   end
