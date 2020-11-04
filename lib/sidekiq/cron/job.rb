@@ -122,6 +122,8 @@ module Sidekiq
         @last_enqueue_timestamp = time.to_i
         @next_enqueue_timestamp = calculate_next_enqueue_time(time).to_i
 
+        save_enqueue_time_options
+
         klass_const =
           begin
             Sidekiq::Cron::Support.constantize(@klass.to_s)
@@ -144,8 +146,6 @@ module Sidekiq
               Sidekiq::Client.push(sidekiq_worker_message)
             end
           end
-
-        save_enqueue_time_options
 
         save_job_history(jid)
 
