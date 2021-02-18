@@ -442,6 +442,8 @@ module Sidekiq
 
       # get current time enqueable cron jobs
       def self.enqueueable(enqueue_at = Time.now.utc)
+        job_count = 0
+
         now = enqueue_at.to_i
 
         job_hashes = all_job_hashes
@@ -450,11 +452,13 @@ module Sidekiq
           next_timestamp = h['next_enqueue_time'].to_i
 
           if h['status'] == 'enabled' && (next_timestamp == 0 || next_timestamp < now)
+            job_count += 1
+
             Sidekiq::Cron::Job.new(h.merge(fetch_missing_args: false))
           end
         end
 
-        jobs.compact
+        [jobs.compact, job_count]
       end
 
       def self.all_job_hashes

@@ -13,38 +13,18 @@ module Sidekiq
         time = Time.now.utc
         locktime = time.to_i + (poll_interval_average * 1.5).to_i
 
-        if getset_pulling_locktime(locktime).to_i > time.to_i
-          locktime_count = get_pulling_locktime_count.to_i + 1
-          set_pulling_locktime_count(locktime_count)
+        return if getset_pulling_locktime(locktime).to_i > time.to_i
 
-          if locktime_count > 10
-            logger.error "cron_job_puller:locktime:count (#{locktime_count})"
-          else
-            return
-          end
+        enqueueable_jobs, job_count = Sidekiq::Cron::Job.enqueueable(time)
+
+        if enqueueable_jobs.blank? && job_count > 0
+          enqueueable_jobs = Sidekiq::Cron::Job.all
+
+          logger.error "cron_job_puller:enqueueable_jobs:empty_vs_count (#{job_count})"
         end
-
-        set_pulling_locktime_count(0)
-
-        enqueueable_jobs = Sidekiq::Cron::Job.enqueueable(time)
 
         enqueueable_jobs.each do |job|
           enqueue_job(job, time)
-        end
-
-        if enqueueable_jobs.blank?
-          empty_count = get_empty_enqueueable_jobs_count.to_i + 1
-          set_empty_enqueueable_jobs_count(empty_count)
-
-          if empty_count > 10
-            logger.error "cron_job_puller:empty_enqueueable_jobs:count (#{empty_count})"
-
-            Sidekiq::Cron::Job.all.each do |job|
-              enqueue_job(job, time)
-            end
-
-            set_empty_enqueueable_jobs_count(0)
-          end
         end
 
         getset_pulling_locktime(0)
@@ -77,31 +57,6 @@ module Sidekiq
           conn.getset('cron_job_puller:locktime', locktime)
         end
       end
-
-      def get_pulling_locktime_count
-        Sidekiq.redis_pool.with do |conn|
-          conn.get('cron_job_puller:locktime:count')
-        end
-      end
-
-      def set_pulling_locktime_count(count)
-        Sidekiq.redis_pool.with do |conn|
-          conn.set('cron_job_puller:locktime:count', count)
-        end
-      end
-
-      def get_empty_enqueueable_jobs_count
-        Sidekiq.redis_pool.with do |conn|
-          conn.get('cron_job_puller:empty_enqueueable_jobs:count')
-        end
-      end
-
-      def set_empty_enqueueable_jobs_count(count)
-        Sidekiq.redis_pool.with do |conn|
-          conn.set('cron_job_puller:empty_enqueueable_jobs:count', count)
-        end
-      end
-
     end
   end
 end
