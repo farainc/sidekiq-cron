@@ -29,13 +29,15 @@ module Sidekiq
             set_pulling_empty_enqueueable_job_time(empty_job_time)
           end
 
-          if empty_job_time < timestamp && job_count > 0
+          if empty_job_time < timestamp
             enqueueable_jobs = Sidekiq::Cron::Job.all
 
             logger.error "Sidekiq::Cron::Poller:enqueueable_jobs:empty (#{job_count})"
 
             set_pulling_empty_enqueueable_job_time(0)
           end
+        else
+          set_pulling_empty_enqueueable_job_time(0)
         end
 
         enqueueable_jobs.each do |job|
