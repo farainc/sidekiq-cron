@@ -11,16 +11,31 @@ module Sidekiq
     class Poller < Sidekiq::Scheduled::Poller
       def enqueue
         time = Time.now.utc
-        locktime = time.to_i + (poll_interval_average * 1.5).to_i
+        timestamp = time.to_i
 
-        return if getset_pulling_locktime(locktime).to_i > time.to_i
+        locktime = timestamp + (poll_interval_average * 1.5).to_i
+
+        return if getset_pulling_locktime(locktime).to_i > timestamp
 
         enqueueable_jobs, job_count = Sidekiq::Cron::Job.enqueueable(time)
 
-        if enqueueable_jobs.blank? && job_count > 0
-          enqueueable_jobs = Sidekiq::Cron::Job.all
+        if enqueueable_jobs.blank? 
+          empty_job_time = get_pulling_empty_enqueueable_job_time.to_i
 
-          logger.error "cron_job_puller:enqueueable_jobs:empty_vs_count (#{job_count})"
+          if empty_job_time == 0
+            empty_job_time = timestamp
+            empty_job_time += 60
+
+            set_pulling_empty_enqueueable_job_time(empty_job_time)
+          end
+
+          if empty_job_time < timestamp && job_count > 0
+            enqueueable_jobs = Sidekiq::Cron::Job.all
+
+            logger.error "Sidekiq::Cron::Poller:enqueueable_jobs:empty (#{job_count})"
+
+            set_pulling_empty_enqueueable_job_time(0)
+          end
         end
 
         enqueueable_jobs.each do |job|
@@ -55,6 +70,18 @@ module Sidekiq
       def getset_pulling_locktime(locktime)
         Sidekiq.redis_pool.with do |conn|
           conn.getset('cron_job_puller:locktime', locktime)
+        end
+      end
+
+      def get_pulling_empty_enqueueable_job_time
+        Sidekiq.redis_pool.with do |conn|
+          conn.get('cron_job_puller:empty_enqueueable_job_time')
+        end
+      end
+
+      def set_pulling_empty_enqueueable_job_time(timestamp)
+        Sidekiq.redis_pool.with do |conn|
+          conn.set('cron_job_puller:empty_enqueueable_job_time', timestamp)
         end
       end
     end
