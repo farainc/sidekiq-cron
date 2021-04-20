@@ -11,7 +11,7 @@ module Sidekiq
       def enqueue
         time = Time.now.utc
         timestamp = time.to_i
-        current_locktime = get_pulling_locktime
+        current_locktime = get_pulling_locktime.to_i
 
         logger.warn "[#{time}] [#{::Process.pid}] current_locktime: (#{current_locktime} > #{timestamp} = #{current_locktime > timestamp})"
         return if current_locktime > timestamp
