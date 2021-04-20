@@ -5,48 +5,38 @@ require 'sidekiq/scheduled'
 
 module Sidekiq
   module Cron
-    POLL_INTERVAL = 30
 
     # The Poller checks Redis every N seconds for sheduled cron jobs
     class Poller < Sidekiq::Scheduled::Poller
       def enqueue
         time = Time.now.utc
         timestamp = time.to_i
+        current_locktime = get_pulling_locktime
 
-        locktime = timestamp + (poll_interval_average * 1.5).to_i
+        logger.warn "[#{time}] [#{Process.pid}] current_locktime: (#{current_locktime} > #{timestamp} = #{current_locktime > timestamp})"
+        return if current_locktime > timestamp
 
-        return if getset_pulling_locktime(locktime).to_i > timestamp
+        next_locktime = timestamp + 60 - timestamp % 60
+        unique_locktime = getset_pulling_locktime(next_locktime).to_i
 
-        enqueueable_jobs, job_count = Sidekiq::Cron::Job.enqueueable(time)
+        logger.warn "[#{time}] [#{Process.pid}] unique_locktime: (#{unique_locktime} > #{timestamp} = #{unique_locktime > timestamp})"
+        return if unique_locktime > timestamp
 
-        if enqueueable_jobs.blank? 
-          empty_job_time = get_pulling_empty_enqueueable_job_time.to_i
-
-          if empty_job_time == 0
-            empty_job_time = timestamp
-            empty_job_time += 60
-
-            set_pulling_empty_enqueueable_job_time(empty_job_time)
-          end
-
-          if empty_job_time < timestamp
-            enqueueable_jobs = Sidekiq::Cron::Job.all
-
-            logger.error "Sidekiq::Cron::Poller:enqueueable_jobs:empty (#{job_count})"
-
-            set_pulling_empty_enqueueable_job_time(0)
-          end
-        else
-          set_pulling_empty_enqueueable_job_time(0)
-        end
+        enqueueable_jobs = if current_locktime + 60 < timestamp
+                             Sidekiq::Cron::Job.all
+                           else
+                             Sidekiq::Cron::Job.enqueueable(time)
+                           end
 
         enqueueable_jobs.each do |job|
           enqueue_job(job, time)
         end
 
-        getset_pulling_locktime(0)
+        # reset locktime to zero (try_to_enqueue_all_cron_jobs)
+        set_pulling_locktime(0) if enqueueable_jobs.size == 0
+        logger.warn "[#{time}] [#{Process.pid}] enqueueable jobs size [#{enqueueable_jobs.size}]"
       rescue => ex
-        getset_pulling_locktime(0)
+        set_pulling_locktime(0)
         # Most likely a problem with redis networking.
         # Punt and try again at the next interval
         logger.error ex.message
@@ -65,8 +55,18 @@ module Sidekiq
         handle_exception(ex) if respond_to?(:handle_exception)
       end
 
-      def poll_interval_average
-        Sidekiq.options[:poll_interval] || POLL_INTERVAL
+      # for cron job always check every 10 secs, regardless how many processes
+      # 01 / 11 / 21 / 31 / 41 / 51
+      def random_poll_interval
+        now = Time.now.to_i
+
+        pids = Sidekiq::ProcessSet.new.to_a.map{ |p| p['pid'] }
+        pids = [Process.pid] if pids.size.zero?
+
+        x = pids.size * 10 + 1
+        y = (pids.index(Process.pid).to_i + 1) * 10
+
+        x - now % y
       end
 
       def getset_pulling_locktime(locktime)
@@ -75,15 +75,15 @@ module Sidekiq
         end
       end
 
-      def get_pulling_empty_enqueueable_job_time
+      def get_pulling_locktime
         Sidekiq.redis_pool.with do |conn|
-          conn.get('cron_job_puller:empty_enqueueable_job_time')
+          conn.get('cron_job_puller:locktime')
         end
       end
 
-      def set_pulling_empty_enqueueable_job_time(timestamp)
+      def set_pulling_locktime(locktime)
         Sidekiq.redis_pool.with do |conn|
-          conn.set('cron_job_puller:empty_enqueueable_job_time', timestamp)
+          conn.set('cron_job_puller:locktime', locktime)
         end
       end
     end
