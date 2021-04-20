@@ -10,14 +10,14 @@ module Sidekiq
     class Poller < Sidekiq::Scheduled::Poller
       def enqueue
         time = Time.now.utc
-        timestamp = time.to_i
-        current_locktime = get_pulling_locktime.to_i
+        timestamp = time.to_f
+        current_locktime = get_pulling_locktime.to_f
 
         logger.warn "[#{time}] [#{::Process.pid}] current_locktime: (#{current_locktime} > #{timestamp} = #{current_locktime > timestamp})"
         return if current_locktime > timestamp
 
         next_locktime = timestamp + 60 - timestamp % 60
-        unique_locktime = getset_pulling_locktime(next_locktime).to_i
+        unique_locktime = getset_pulling_locktime(next_locktime).to_f
 
         logger.warn "[#{time}] [#{::Process.pid}] unique_locktime: (#{unique_locktime} > #{timestamp} = #{unique_locktime > timestamp})"
         return if unique_locktime > timestamp
@@ -58,7 +58,7 @@ module Sidekiq
       # for cron job always check every 10 secs, regardless how many processes
       # 01 / 11 / 21 / 31 / 41 / 51
       def random_poll_interval
-        now = Time.now.to_i
+        now = Time.now.to_f
 
         pids = Sidekiq::ProcessSet.new.to_a.map{ |p| p['pid'] }
         pids = [::Process.pid] if pids.size.zero?
