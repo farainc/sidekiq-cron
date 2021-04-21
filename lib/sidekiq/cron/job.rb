@@ -149,7 +149,7 @@ module Sidekiq
 
         save_job_history(jid)
 
-        logger.debug { "Cron Jobs - enqueued #{@name}: #{@message}" }
+        logger.debug { "CRON JOB: enqueued #{@name}: #{@message}" }
       end
 
       def save_enqueue_time_options
@@ -341,7 +341,7 @@ module Sidekiq
           conn.hmset(redis_key, *hash_to_redis(to_hash))
         end
 
-        logger.info { "Cron Jobs - add job with name: #{@name}" }
+        logger.info { "CRON JOB: add job with name: #{@name}" }
       end
 
       def exists?
@@ -397,7 +397,7 @@ module Sidekiq
           conn.del redis_key
         end
 
-        logger.info { "Cron Jobs - deleted job with name: #{@name}" }
+        logger.info { "CRON JOB: deleted job with name: #{@name}" }
       end
 
       def sort_name
@@ -580,7 +580,7 @@ module Sidekiq
       # remove all job from cron
       def self.destroy_all!
         all.each(&:destroy)
-        logger.info { 'Cron Jobs - deleted all jobs' }
+        logger.info { 'CRON JOB: deleted all jobs' }
       end
 
       # remove "removed jobs" between current jobs and new jobs
