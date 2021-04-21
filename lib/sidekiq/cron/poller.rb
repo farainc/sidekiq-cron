@@ -136,11 +136,18 @@ module Sidekiq
       def calculate_safe_enqueue_interval(now, interval)
         return interval if interval <= DEFAULT_CRON_SAFE_INTERVAL
 
+        # set next enqueue schedule for current_process_pid
+        if (now + interval).to_i % DEFAULT_CRON_SAFE_INTERVAL == 1
+          set_next_enqueue_schedule(next_enqueue_schedule)
+
+          return interval
+        end
+
         next_enqueue_schedule = (now + DEFAULT_CRON_SAFE_INTERVAL - now % DEFAULT_CRON_SAFE_INTERVAL).to_i + 1
         next_enqueue_process_pid = get_next_enqueue_schedule(next_enqueue_schedule).first.to_i
         return interval if active_process_pids.index(next_enqueue_process_pid)
 
-        # set next enqueue_schdule
+        # set next enqueue schedule
         set_next_enqueue_schedule(next_enqueue_schedule)
 
         # avoid concurrent update for next_enqueue_schedule
