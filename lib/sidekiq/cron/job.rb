@@ -351,7 +351,7 @@ module Sidekiq
       # jid history
       def save_job_history(jid)
         jid_history = {
-          jid: "[#{::Process.pid}] #{jid}",
+          jid: "[#{identity}] #{jid}",
           enqueued: @last_enqueue_timestamp,
           next_enqueue_at: @next_enqueue_timestamp
         }
