@@ -31,13 +31,13 @@ module Sidekiq
         timestamp = time.to_f
         current_locktime = get_pulling_locktime.to_f
 
-        logger.warn "[#{time}] [#{current_process_pid}] current_locktime passed? [#{current_locktime > timestamp}] (#{current_locktime} > #{timestamp})"
+        logger.warn "[#{time}] [#{current_process_pid}] current_locktime skip? [#{current_locktime > timestamp}] (#{current_locktime} > #{timestamp})"
         return if current_locktime > timestamp
 
         timeout_locktime = timestamp + DEFAULT_CRON_ENQUEUE_LOCKTIME - timestamp % DEFAULT_CRON_SAFE_INTERVAL
         unique_locktime = getset_pulling_locktime(timeout_locktime).to_f
 
-        logger.warn "[#{time}] [#{current_process_pid}] unique_locktime passed? [#{unique_locktime > timestamp}] (#{unique_locktime} > #{timestamp})"
+        logger.warn "[#{time}] [#{current_process_pid}] unique_locktime skip? [#{unique_locktime > timestamp}] (#{unique_locktime} > #{timestamp})"
         return if unique_locktime > timestamp
 
         enqueueable_jobs = if current_locktime + DEFAULT_CRON_SAFE_INTERVAL < timestamp
