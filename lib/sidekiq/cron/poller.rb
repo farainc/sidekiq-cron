@@ -35,13 +35,13 @@ module Sidekiq
         timestamp = time.to_f
         current_locktime = get_pulling_locktime.to_f
 
-        logger.warn "[#{Time.now}] [#{current_process_pid}] current_locktime skip? [#{current_locktime > timestamp}] (#{current_locktime} > #{timestamp})"
+        logger.warn "[#{current_process_pid}] current_locktime skip? [#{current_locktime > timestamp}] (#{current_locktime} > #{timestamp})"
         return if current_locktime > timestamp
 
         timeout_locktime = timestamp + DEFAULT_CRON_ENQUEUE_LOCKTIME - timestamp % DEFAULT_CRON_SAFE_INTERVAL
         unique_locktime = getset_pulling_locktime(timeout_locktime).to_f
 
-        logger.warn "[#{Time.now}] [#{current_process_pid}] unique_locktime skip? [#{unique_locktime > timestamp}] (#{unique_locktime} > #{timestamp})"
+        logger.warn "[#{current_process_pid}] unique_locktime skip? [#{unique_locktime > timestamp}] (#{unique_locktime} > #{timestamp})"
         return if unique_locktime > timestamp
 
         enqueueable_jobs = if current_locktime + DEFAULT_CRON_SAFE_INTERVAL < timestamp
@@ -65,7 +65,7 @@ module Sidekiq
 
         cleanup_next_enqueue_schedule(time.to_i)
 
-        logger.warn "[#{Time.now}] [#{current_process_pid}] enqueueable jobs size: (#{enqueueable_jobs.size})"
+        logger.warn "[#{current_process_pid}] enqueueable jobs size: (#{enqueueable_jobs.size})"
       rescue => ex
         set_pulling_locktime(0)
         # Most likely a problem with redis networking.
@@ -102,7 +102,7 @@ module Sidekiq
 
         interval = calculate_safe_enqueue_interval(now, interval) + safe_random_interval
 
-        logger.warn "[#{Time.now}] [#{current_process_pid}] random_poll_interval: (#{interval})"
+        logger.warn "[#{current_process_pid}] random_poll_interval: (#{interval})"
 
         interval
       end
@@ -155,7 +155,7 @@ module Sidekiq
         next_enqueue_process_pid = get_next_enqueue_schedule(next_enqueue_schedule).first.to_i
         return interval if next_enqueue_process_pid != current_process_pid
 
-        logger.warn "[#{Time.now}] [#{current_process_pid}] ensure_safe_enqueue_interval override, calculated interval: (#{interval})"
+        logger.warn "[#{current_process_pid}] calculate_safe_enqueue_interval override: (#{interval})"
 
         next_enqueue_schedule - now
       end
