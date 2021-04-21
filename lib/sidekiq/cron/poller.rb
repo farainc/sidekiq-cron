@@ -13,15 +13,19 @@ module Sidekiq
       DEFAULT_CRON_ENQUEUE_LOCKTIME = 300
 
       attr_reader :current_process_pid
+      attr_reader :process_base_interval
+      attr_reader :safe_random_interval
       attr_reader :active_process_pids
       attr_reader :active_process_count
-      attr_reader :safe_random_interval
+      attr_reader :active_process_interval
 
       def initialize
         @current_process_pid = ::Process.pid
+        @process_base_interval = 0
+        @safe_random_interval = 0
         @active_process_pids = []
         @active_process_count = 0
-        @safe_random_interval = 0
+        @active_process_interval = 0
 
         super
       end
@@ -98,24 +102,29 @@ module Sidekiq
       end
 
       def load_current_active_process_stats
-        @active_process_pids = Sidekiq::ProcessSet.new.map{ |p| p.stopping? ? nil : p['pid'] }.compact
-        @active_process_pids = [current_process_pid] if @active_process_pids.size.zero?
+        new_process_pids = Sidekiq::ProcessSet.new.map{ |p| p.stopping? ? nil : p['pid'] }.compact
+        new_process_pids = [current_process_pid] if new_process_pids.size == 0
 
         # update rand interval in case process_count changed
         # avoid concurrent poller triggers
         @safe_random_interval = 0
-        @safe_random_interval = 7 * rand if @active_process_count != @active_process_pids.size
 
-        @active_process_count = @active_process_pids.size
+        if @active_process_pids != new_process_pids
+          @safe_random_interval = 7 * rand
+          @active_process_pids = new_process_pids
+          @active_process_count = @active_process_pids.size
+          @process_base_interval = @active_process_count * DEFAULT_CRON_POLL_INTERVAL
+          @active_process_interval = @active_process_pids.index(current_process_pid).to_i * DEFAULT_CRON_POLL_INTERVAL + DEFAULT_CRON_POLL_INTERVAL + 1
+        end
       end
 
       def calculate_process_based_interval(now)
         load_current_active_process_stats
 
-        x = active_process_pids.size * DEFAULT_CRON_POLL_INTERVAL + 1
-        y = active_process_pids.index(current_process_pid).to_i * DEFAULT_CRON_POLL_INTERVAL
+        interval = active_process_interval - now % process_base_interval
+        interval += process_base_interval if interval < 0
 
-        x - now % DEFAULT_CRON_POLL_INTERVAL - y
+        interval
       end
 
       def calculate_safe_enqueue_interval(now, interval)
