@@ -21,18 +21,23 @@ module Sidekiq
       # execute normal run of launcher and run cron poller
       def run
         super
+
         cron_poller.start
       end
 
       # execute normal quiet of launcher and quiet cron poller
       def quiet
+        cron_poller.cleanup_next_enqueue_schedule_process
         cron_poller.terminate
+
         super
       end
 
       # execute normal stop of launcher and stop cron poller
       def stop
+        cron_poller.cleanup_next_enqueue_schedule_process
         cron_poller.terminate
+
         super
       end
     end
