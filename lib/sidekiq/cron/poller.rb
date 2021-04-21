@@ -75,6 +75,12 @@ module Sidekiq
         handle_exception(ex) if respond_to?(:handle_exception)
       end
 
+      def cleanup_next_enqueue_schedule_process
+        Sidekiq.redis_pool.with do |conn|
+          conn.zrem('cron_job_puller:enqueue', current_process_pid)
+        end
+      end
+
       private
 
       def enqueue_job(job, time = Time.now.utc)
@@ -179,12 +185,6 @@ module Sidekiq
       def cleanup_next_enqueue_schedule(time)
         Sidekiq.redis_pool.with do |conn|
           conn.zremrangebyscore('cron_job_puller:enqueue', 0, time)
-        end
-      end
-
-      def cleanup_next_enqueue_schedule_process
-        Sidekiq.redis_pool.with do |conn|
-          conn.zrem('cron_job_puller:enqueue', current_process_pid)
         end
       end
     end
