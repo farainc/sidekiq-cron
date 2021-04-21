@@ -113,9 +113,9 @@ module Sidekiq
         load_current_active_process_stats
 
         x = active_process_pids.size * DEFAULT_CRON_POLL_INTERVAL + 1
-        y = active_process_pids.index(current_process_pid).to_i * DEFAULT_CRON_POLL_INTERVAL + DEFAULT_CRON_POLL_INTERVAL
+        y = active_process_pids.index(current_process_pid).to_i * DEFAULT_CRON_POLL_INTERVAL
 
-        x - now % y
+        x - now % DEFAULT_CRON_POLL_INTERVAL - y
       end
 
       def calculate_safe_enqueue_interval(now, interval)
