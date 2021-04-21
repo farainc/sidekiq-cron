@@ -137,8 +137,9 @@ module Sidekiq
         return interval if interval <= DEFAULT_CRON_SAFE_INTERVAL
 
         # set next enqueue schedule for current_process_pid
-        if (now + interval).to_i % DEFAULT_CRON_SAFE_INTERVAL == 1
-          set_next_enqueue_schedule(next_enqueue_schedule)
+        future_enqueue_schedule = (now + interval).to_i
+        if future_enqueue_schedule % DEFAULT_CRON_SAFE_INTERVAL == 1
+          set_next_enqueue_schedule(future_enqueue_schedule)
 
           return interval
         end
