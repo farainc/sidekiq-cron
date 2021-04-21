@@ -65,7 +65,7 @@ module Sidekiq
 
         cleanup_next_enqueue_schedule(time.to_i)
 
-        logger.error "CRON JOB: enqueueable job size: (#{enqueueable_jobs.size})"
+        logger.warn "CRON JOB: enqueueable job size: (#{enqueueable_jobs.size})"
       rescue => ex
         set_pulling_locktime(0)
         # Most likely a problem with redis networking.
@@ -155,7 +155,7 @@ module Sidekiq
         next_enqueue_process_pid = get_next_enqueue_schedule(next_enqueue_schedule).first.to_i
         return interval if next_enqueue_process_pid != current_process_pid
 
-        logger.info "CRON JOB: calculate_safe_enqueue_interval override: (#{interval})"
+        logger.warn "CRON JOB: calculate_safe_enqueue_interval override: (#{interval})"
 
         next_enqueue_schedule - now
       end
